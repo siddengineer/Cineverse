@@ -292,10 +292,180 @@
 
 
 
+# import csv
+# import os
+# from django.core.management.base import BaseCommand
+# from django.conf import settings
+
+
+# class Command(BaseCommand):
+#     help = 'Import movies from TMDB and Indian Movies CSV files'
+
+#     def add_arguments(self, parser):
+#         parser.add_argument('--clear', action='store_true')
+
+#     def handle(self, *args, **options):
+#         from movies.models import Movie, Genre
+
+#         # 🔥 IMPORTANT FIX (prevents re-import every deploy)
+#         if Movie.objects.exists() and not options.get('clear'):
+#             self.stdout.write("⚠ Movies already exist. Skipping import.")
+#             return
+
+#         if options.get('clear'):
+#             self.stdout.write("Clearing DB...")
+#             Movie.objects.all().delete()
+#             Genre.objects.all().delete()
+
+#         tmdb_csv = settings.TMDB_MOVIES_CSV
+#         indian_csv = settings.INDIAN_MOVIES_CSV
+
+#         print("TMDB PATH:", tmdb_csv)
+#         print("INDIAN PATH:", indian_csv)
+
+#         if os.path.exists(tmdb_csv):
+#             self.stdout.write("Importing TMDB...")
+#             self._import_tmdb(tmdb_csv, Movie, Genre)
+
+#         if os.path.exists(indian_csv):
+#             self.stdout.write("Importing Indian movies...")
+#             self._import_indian(indian_csv, Movie, Genre)
+#         else:
+#             print("❌ Indian CSV NOT FOUND")
+
+#         self.stdout.write(self.style.SUCCESS(
+#             f"Done! Total movies: {Movie.objects.count()}"
+#         ))
+
+#     # ---------------- HELPERS ----------------
+
+#     def _safe_float(self, val):
+#         try:
+#             return float(val)
+#         except:
+#             return 0.0
+
+#     def _safe_int(self, val):
+#         try:
+#             return int(float(val))
+#         except:
+#             return 0
+
+#     def _parse_genres(self, raw):
+#         if not raw:
+#             return [], ''
+#         names = [g.strip() for g in str(raw).split(',') if g.strip()]
+#         return names, ', '.join(names)
+
+#     # ---------------- TMDB ----------------
+
+#     def _import_tmdb(self, path, Movie, Genre):
+#         created = skipped = 0
+
+#         with open(path, encoding='utf-8', errors='replace') as f:
+#             reader = csv.DictReader(f)
+
+#             for i, row in enumerate(reader, start=1):
+#                 try:
+#                     title = row.get('title') or row.get('original_title')
+#                     if not title:
+#                         continue
+
+#                     genres_list, genres_str = self._parse_genres(row.get('genres'))
+
+#                     movie, was_created = Movie.objects.get_or_create(
+#                         title=title.strip(),
+#                         source='tmdb',
+#                         defaults={
+#                             'original_title': title.strip(),
+#                             'overview': row.get('overview') or '',
+#                             'release_year': self._safe_int(row.get('release_date')[:4]) if row.get('release_date') else None,
+#                             'language': row.get('original_language') or 'en',
+#                             'genre_names': genres_str,
+#                             'rating': self._safe_float(row.get('vote_average')),
+#                             'vote_count': self._safe_int(row.get('vote_count')),
+#                             'popularity': self._safe_float(row.get('popularity')),
+#                         }
+#                     )
+
+#                     for g in genres_list:
+#                         genre, _ = Genre.objects.get_or_create(name=g)
+#                         movie.genres.add(genre)
+
+#                     if was_created:
+#                         created += 1
+#                     else:
+#                         skipped += 1
+
+#                     if i % 500 == 0:
+#                         print(f"TMDB: {i}")
+
+#                 except Exception as e:
+#                     print("TMDB ERROR:", e)
+
+#         print(f"TMDB DONE: {created} created, {skipped} skipped")
+
+#     # ---------------- INDIAN ----------------
+
+#     def _import_indian(self, path, Movie, Genre):
+#         created = skipped = 0
+
+#         with open(path, encoding='utf-8', errors='replace') as f:
+#             reader = csv.DictReader(f)
+
+#             for i, row in enumerate(reader, start=1):
+#                 try:
+#                     title = row.get('Movie Name') or ''
+#                     if not title:
+#                         continue
+
+#                     title = title.strip()
+#                     genres_list, genres_str = self._parse_genres(row.get('Genre'))
+
+#                     movie, was_created = Movie.objects.get_or_create(
+#                         title=title,
+#                         source='indian',
+#                         defaults={
+#                             'original_title': title,
+#                             'overview': '',
+#                             'release_year': self._safe_int(row.get('Year')),
+#                             'language': (row.get('Language') or 'hindi').strip().lower(),
+#                             'genre_names': genres_str,
+#                             'rating': self._safe_float(row.get('Rating(10)')),
+#                             'vote_count': self._safe_int(row.get('Votes')),
+#                             'popularity': 0,
+#                         }
+#                     )
+
+#                     for g in genres_list:
+#                         genre, _ = Genre.objects.get_or_create(name=g)
+#                         movie.genres.add(genre)
+
+#                     if was_created:
+#                         created += 1
+#                     else:
+#                         skipped += 1
+
+#                     if i % 500 == 0:
+#                         print(f"INDIAN: {i}")
+
+#                 except Exception as e:
+#                     print("INDIAN ERROR:", e)
+
+#         print(f"INDIAN DONE: {created} created, {skipped} skipped")
+
+
+
+
+
+
 import csv
 import os
 from django.core.management.base import BaseCommand
 from django.conf import settings
+
+# 🔥 ADDED
+from movies.omdb_service import fetch_poster
 
 
 class Command(BaseCommand):
@@ -394,6 +564,11 @@ class Command(BaseCommand):
 
                     if was_created:
                         created += 1
+
+                        # 🔥 ONLY ADDITION
+                        if not movie.poster_url:
+                            fetch_poster(movie)
+
                     else:
                         skipped += 1
 
@@ -443,6 +618,11 @@ class Command(BaseCommand):
 
                     if was_created:
                         created += 1
+
+                        # 🔥 ONLY ADDITION
+                        if not movie.poster_url:
+                            fetch_poster(movie)
+
                     else:
                         skipped += 1
 
