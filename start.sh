@@ -1,0 +1,1 @@
+gunicorn cineverse.wsgi:application

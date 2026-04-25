@@ -1,0 +1,438 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cineverse</title>
+  <link rel="stylesheet" href="{% static 'style.css' %}" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    /* ── List card improvements ─────────────────────────────────────────── */
+    .list-card-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 0.75rem;
+      margin-bottom: 0.4rem;
+    }
+    .list-card-actions-row {
+      display: flex;
+      gap: 0.4rem;
+      flex-shrink: 0;
+    }
+    .list-action-btn {
+      background: transparent;
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 8px;
+      color: var(--text-sub, #aaa);
+      font-size: 0.75rem;
+      padding: 0.3rem 0.55rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+    .list-action-btn:hover { border-color: var(--gold, #d4a84b); color: var(--gold, #d4a84b); background: rgba(212,168,75,0.08); }
+    .delete-list-btn:hover { border-color: #e05555; color: #e05555; background: rgba(224,85,85,0.08); }
+    .ai-badge {
+      background: linear-gradient(135deg, #7c3aed, #4f46e5);
+      color: #fff;
+      font-size: 0.7rem;
+      padding: 0.15rem 0.45rem;
+      border-radius: 6px;
+      font-weight: 600;
+    }
+
+    /* ── AI List Result ──────────────────────────────────────────────────── */
+    .ai-list-movies { display: flex; flex-direction: column; gap: 0.6rem; max-height: 340px; overflow-y: auto; }
+    .ai-list-movie-item {
+      display: flex; align-items: center; gap: 0.75rem;
+      padding: 0.5rem; border-radius: 8px; cursor: pointer;
+      background: rgba(255,255,255,0.04); transition: background 0.2s;
+    }
+    .ai-list-movie-item:hover { background: rgba(255,255,255,0.08); }
+    .ai-list-movie-item img { width: 40px; height: 58px; object-fit: cover; border-radius: 4px; flex-shrink: 0; }
+    .ai-list-no-poster { width: 40px; height: 58px; background: rgba(255,255,255,0.06); border-radius: 4px; display:flex; align-items:center; justify-content:center; font-size:1.2rem; flex-shrink:0; }
+    .ai-list-movie-title { font-size: 0.9rem; font-weight: 500; color: var(--text-main, #f0f0f0); }
+    .ai-list-movie-meta { font-size: 0.78rem; color: var(--text-dim, #777); margin-top: 0.15rem; }
+
+    /* ── OTT chips ───────────────────────────────────────────────────────── */
+    .ott-chips { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.5rem; }
+    .ott-chip {
+      background: rgba(79,70,229,0.2); border: 1px solid rgba(79,70,229,0.5);
+      color: #a5b4fc; padding: 0.3rem 0.75rem; border-radius: 20px; font-size: 0.82rem; font-weight: 500;
+    }
+
+    /* ── Lists page header row ───────────────────────────────────────────── */
+    .lists-header-btn-group { display: flex; gap: 0.6rem; flex-wrap: wrap; }
+    .btn-ai {
+      background: linear-gradient(135deg, #7c3aed, #4f46e5);
+      color: #fff; border: none; border-radius: 10px;
+      padding: 0.6rem 1.2rem; font-size: 0.875rem; font-weight: 600;
+      cursor: pointer; transition: opacity 0.2s;
+    }
+    .btn-ai:hover { opacity: 0.88; }
+  </style>
+</head>
+<body>
+
+<!-- ─── NAVBAR ──────────────────────────────────────────────────────────────── -->
+<nav id="navbar">
+  <div class="nav-logo" onclick="showPage('home')">
+    <span class="logo-icon">◈</span>
+    <span class="logo-text">Cineverse</span>
+  </div>
+  <div class="nav-links" id="navLinks">
+    <a class="nav-link active" onclick="showPage('home')">Home</a>
+    <a class="nav-link" onclick="showPage('search')">Search</a>
+    <a class="nav-link" onclick="showPage('watchlist')">Watchlist</a>
+    <a class="nav-link" onclick="showPage('lists')">My Lists</a>
+    <a class="nav-link" onclick="showPage('ai')">AI Chat</a>
+  </div>
+  <div class="nav-actions">
+    <div id="searchIcon" class="icon-btn" onclick="showPage('search')" title="Search">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    </div>
+    <div id="authButtons" class="auth-buttons">
+      <button class="btn-ghost" onclick="openModal('loginModal')">Sign In</button>
+      <button class="btn-primary" onclick="openModal('registerModal')">Sign Up</button>
+    </div>
+    <div id="userMenu" class="user-menu hidden">
+      <div class="avatar" id="userAvatar" onclick="toggleUserDropdown()">U</div>
+      <div class="user-dropdown hidden" id="userDropdown">
+        <div class="dropdown-name" id="dropdownName"></div>
+        <div class="dropdown-item" onclick="showPage('watchlist')">My Watchlist</div>
+        <div class="dropdown-item" onclick="showPage('lists')">My Lists</div>
+        <div class="dropdown-item" onclick="showPage('profile')">Profile</div>
+        <div class="dropdown-divider"></div>
+        <div class="dropdown-item danger" onclick="logout()">Sign Out</div>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<!-- ─── TOAST ───────────────────────────────────────────────────────────────── -->
+<div id="toast" class="toast"></div>
+
+<!-- ═══ PAGES ═══════════════════════════════════════════════════════════════ -->
+
+<!-- HOME PAGE -->
+<div id="page-home" class="page active">
+  <section class="hero">
+    <div class="hero-bg">
+      <div class="hero-gradient"></div>
+      <div class="hero-grain"></div>
+    </div>
+    <div class="hero-content">
+      <div class="hero-eyebrow">Discover • Watch • Remember</div>
+      <h1 class="hero-title">Your cinema,<br/><em>curated.</em></h1>
+      <p class="hero-sub">Millions of films. Personalised picks. AI-powered discovery.</p>
+      <div class="hero-search">
+        <input type="text" id="heroSearch" placeholder="Search a movie, genre, or mood…" onkeydown="if(event.key==='Enter'){doHeroSearch()}" />
+        <button onclick="doHeroSearch()">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <div class="home-sections">
+    <section class="movie-section">
+      <div class="section-header">
+        <h2 class="section-title">Trending This Week</h2>
+        <span class="section-badge">Hot</span>
+      </div>
+      <div class="movie-row" id="trendingWeek"><div class="loader-row"></div></div>
+    </section>
+
+    <section class="movie-section">
+      <div class="section-header">
+        <h2 class="section-title">Top Rated</h2>
+        <span class="section-badge gold">★ All Time</span>
+      </div>
+      <div class="movie-row" id="topRated"><div class="loader-row"></div></div>
+    </section>
+
+    <section class="movie-section">
+      <div class="section-header">
+        <h2 class="section-title">Indian Cinema</h2>
+        <span class="section-badge saffron">Bollywood & Beyond</span>
+      </div>
+      <div class="movie-row" id="indianMovies"><div class="loader-row"></div></div>
+    </section>
+
+    <section class="movie-section" id="recoSection" style="display:none">
+      <div class="section-header">
+        <h2 class="section-title">Picked For You</h2>
+        <span class="section-badge teal">Personalised</span>
+      </div>
+      <div class="movie-row" id="recommendations"><div class="loader-row"></div></div>
+    </section>
+  </div>
+</div>
+
+<!-- SEARCH PAGE -->
+<div id="page-search" class="page">
+  <div class="page-container">
+    <div class="page-header">
+      <h1>Search</h1>
+      <p>Explore our full catalogue of films</p>
+    </div>
+    <div class="search-bar-row">
+      <div class="search-input-wrap">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="searchInput" placeholder="Title, director, actor…" oninput="debounceSearch()" />
+      </div>
+      <div class="filter-chips">
+        <select id="filterGenre" onchange="debounceSearch()">
+          <option value="">All Genres</option>
+        </select>
+        <input type="number" id="filterYear" placeholder="Year" min="1900" max="2030" oninput="debounceSearch()" style="width:90px;" />
+        <select id="filterLang" onchange="debounceSearch()">
+          <option value="">All Languages</option>
+          <option value="en">English (TMDB)</option>
+          <option value="hindi">Hindi</option>
+          <option value="tamil">Tamil</option>
+          <option value="telugu">Telugu</option>
+          <option value="malayalam">Malayalam</option>
+          <option value="kannada">Kannada</option>
+          <option value="bengali">Bengali</option>
+          <option value="marathi">Marathi</option>
+          <option value="punjabi">Punjabi</option>
+          <option value="urdu">Urdu</option>
+          <option value="bhojpuri">Bhojpuri</option>
+          <option value="assamese">Assamese</option>
+          <option value="oriya">Odia</option>
+          <option value="nepali">Nepali</option>
+          <option value="ko">Korean</option>
+          <option value="fr">French</option>
+          <option value="es">Spanish</option>
+          <option value="ja">Japanese</option>
+        </select>
+      </div>
+    </div>
+    <div id="searchResults" class="movie-grid">
+      <div class="empty-state">
+        <div class="empty-icon">🎬</div>
+        <p>Start typing to search…</p>
+      </div>
+    </div>
+    <div id="searchPagination" class="pagination"></div>
+  </div>
+</div>
+
+<!-- MOVIE DETAIL PAGE -->
+<div id="page-detail" class="page">
+  <div id="movieDetailContent"></div>
+</div>
+
+<!-- WATCHLIST PAGE -->
+<div id="page-watchlist" class="page">
+  <div class="page-container">
+    <div class="page-header">
+      <h1>My Watchlist</h1>
+      <p>Films you've saved to watch later</p>
+    </div>
+    <div id="watchlistContent" class="movie-grid"></div>
+  </div>
+</div>
+
+<!-- LISTS PAGE -->
+<div id="page-lists" class="page">
+  <div class="page-container">
+    <div class="page-header-row">
+      <div>
+        <h1>My Lists</h1>
+        <p>Curate your own collections or let AI build one</p>
+      </div>
+      <!-- ✅ Both buttons: manual + AI -->
+      <div class="lists-header-btn-group">
+        <button class="btn-ai" onclick="openAIListModal()">✨ Create with AI</button>
+        <button class="btn-primary" onclick="openModal('createListModal')">+ New List</button>
+      </div>
+    </div>
+    <div id="listsContent" class="lists-grid"></div>
+  </div>
+</div>
+
+<!-- AI CHAT PAGE -->
+<div id="page-ai" class="page">
+  <div class="ai-layout">
+    <div class="ai-sidebar">
+      <h2 class="ai-sidebar-title">AI Cinema Assistant</h2>
+      <p class="ai-sidebar-desc">Ask anything about movies — recommendations, explanations, mood picks, OTT availability, and more.</p>
+      <div class="ai-quick-prompts">
+        <div class="quick-prompt" onclick="sendQuickPrompt('Recommend me a thriller I haven\'t heard of')">
+          🎭 Recommend a hidden gem
+        </div>
+        <div class="quick-prompt" onclick="sendQuickPrompt('What should I watch if I loved Interstellar?')">
+          🚀 Movies like Interstellar
+        </div>
+        <div class="quick-prompt" onclick="sendQuickPrompt('I\'m in the mood for something funny tonight')">
+          😄 Mood: something funny
+        </div>
+        <div class="quick-prompt" onclick="sendQuickPrompt('Top 5 Indian films I must see')">
+          🇮🇳 Must-watch Indian films
+        </div>
+        <div class="quick-prompt" onclick="sendQuickPrompt('Best emotional Bollywood movies from the last 10 years')">
+          💔 Emotional Bollywood
+        </div>
+        <div class="quick-prompt" onclick="sendQuickPrompt('Mind-bending sci-fi movies that will blow my mind')">
+          🧠 Mind-bending sci-fi
+        </div>
+      </div>
+    </div>
+    <div class="ai-chat-area">
+      <div class="chat-messages" id="chatMessages">
+        <div class="chat-msg assistant">
+          <div class="chat-bubble">
+            Hello! I'm your AI cinema guide. Ask me anything — I can recommend films, explain why you might love something, compare movies, tell you where to stream, or curate a list for any mood. What's on your mind?
+          </div>
+        </div>
+      </div>
+      <div class="chat-input-row">
+        <input type="text" id="chatInput" placeholder="Ask about any movie…" onkeydown="if(event.key==='Enter')sendChat()" />
+        <button class="chat-send-btn" onclick="sendChat()">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PROFILE PAGE -->
+<div id="page-profile" class="page">
+  <div class="page-container narrow">
+    <div class="page-header">
+      <h1>My Profile</h1>
+    </div>
+    <div class="profile-card">
+      <div class="profile-avatar-large" id="profileAvatarLarge"></div>
+      <div id="profileInfo"></div>
+    </div>
+    <div class="profile-section">
+      <h3>My Ratings</h3>
+      <div id="myRatings" class="movie-grid"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MODALS ════════════════════════════════════════════════════════════════ -->
+
+<!-- LOGIN -->
+<div class="modal-overlay hidden" id="loginModal" onclick="closeModalOnBg(event,'loginModal')">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('loginModal')">×</button>
+    <div class="modal-logo">◈ Cineverse</div>
+    <h2 class="modal-title">Welcome back</h2>
+    <div class="form-group">
+      <label>Username or Email</label>
+      <input type="text" id="loginUsername" placeholder="your@email.com" onkeydown="if(event.key==='Enter')doLogin()" />
+    </div>
+    <div class="form-group">
+      <label>Password</label>
+      <input type="password" id="loginPassword" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()" />
+    </div>
+    <div id="loginError" class="form-error"></div>
+    <button class="btn-primary full-width" onclick="doLogin()">Sign In</button>
+    <p class="modal-switch">Don't have an account? <a onclick="switchModal('loginModal','registerModal')">Sign up</a></p>
+  </div>
+</div>
+
+<!-- REGISTER -->
+<div class="modal-overlay hidden" id="registerModal" onclick="closeModalOnBg(event,'registerModal')">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('registerModal')">×</button>
+    <div class="modal-logo">◈ Cineverse</div>
+    <h2 class="modal-title">Create account</h2>
+    <div class="form-group">
+      <label>Username</label>
+      <input type="text" id="regUsername" placeholder="cinephile42" />
+    </div>
+    <div class="form-group">
+      <label>Email</label>
+      <input type="email" id="regEmail" placeholder="your@email.com" />
+    </div>
+    <div class="form-group">
+      <label>Password</label>
+      <input type="password" id="regPassword" placeholder="••••••••" />
+    </div>
+    <div id="regError" class="form-error"></div>
+    <button class="btn-primary full-width" onclick="doRegister()">Create Account</button>
+    <p class="modal-switch">Already have an account? <a onclick="switchModal('registerModal','loginModal')">Sign in</a></p>
+  </div>
+</div>
+
+<!-- CREATE LIST -->
+<div class="modal-overlay hidden" id="createListModal" onclick="closeModalOnBg(event,'createListModal')">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('createListModal')">×</button>
+    <h2 class="modal-title">Create a New List</h2>
+    <div class="form-group">
+      <label>List Name</label>
+      <input type="text" id="listName" placeholder="e.g. Weekend Watches" />
+    </div>
+    <div class="form-group">
+      <label>Description (optional)</label>
+      <textarea id="listDesc" placeholder="What is this list about?" rows="3"></textarea>
+    </div>
+    <div class="form-group checkbox-group">
+      <label><input type="checkbox" id="listPublic" /> Make this list public</label>
+    </div>
+    <div id="listError" class="form-error"></div>
+    <button class="btn-primary full-width" onclick="createList()">Create List</button>
+  </div>
+</div>
+
+<!-- ✅ AI LIST GENERATOR MODAL -->
+<div class="modal-overlay hidden" id="aiListModal" onclick="closeModalOnBg(event,'aiListModal')">
+  <div class="modal" style="max-width:520px;">
+    <button class="modal-close" onclick="closeModal('aiListModal')">×</button>
+    <div style="font-size:1.5rem;margin-bottom:0.25rem">✨</div>
+    <h2 class="modal-title">Create with AI</h2>
+    <p style="color:var(--text-sub);font-size:0.875rem;margin-bottom:1.25rem;margin-top:-0.25rem">
+      Describe the list you want and AI will pick the best matching films from our dataset.
+    </p>
+    <div class="form-group">
+      <label>What kind of list?</label>
+      <input type="text" id="aiListPrompt"
+        placeholder="e.g. Best emotional Bollywood movies, Mind-bending sci-fi…"
+        onkeydown="if(event.key==='Enter')generateAIList()" />
+    </div>
+    <div class="ai-prompt-examples">
+      <span onclick="document.getElementById('aiListPrompt').value=this.textContent">Best thriller movies</span>
+      <span onclick="document.getElementById('aiListPrompt').value=this.textContent">Classic Bollywood must-watch</span>
+      <span onclick="document.getElementById('aiListPrompt').value=this.textContent">Mind-blowing sci-fi films</span>
+      <span onclick="document.getElementById('aiListPrompt').value=this.textContent">Feel-good comedy movies</span>
+      <span onclick="document.getElementById('aiListPrompt').value=this.textContent">Underrated Indian gems</span>
+      <span onclick="document.getElementById('aiListPrompt').value=this.textContent">Best crime dramas</span>
+    </div>
+    <div class="form-group checkbox-group" style="margin-top:0.75rem">
+      <label><input type="checkbox" id="aiListSave" checked /> Save this as a list in My Lists</label>
+    </div>
+    <div id="aiListError" class="form-error"></div>
+    <button class="btn-ai full-width" onclick="generateAIList()" style="margin-bottom:0.75rem">
+      ✨ Generate List
+    </button>
+    <div id="aiListResult"></div>
+  </div>
+</div>
+
+<style>
+  .ai-prompt-examples {
+    display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.5rem; margin-bottom: 0.25rem;
+  }
+  .ai-prompt-examples span {
+    background: rgba(124,58,237,0.15); border: 1px solid rgba(124,58,237,0.3);
+    color: #a78bfa; font-size: 0.75rem; padding: 0.25rem 0.6rem;
+    border-radius: 20px; cursor: pointer; transition: all 0.15s;
+  }
+  .ai-prompt-examples span:hover { background: rgba(124,58,237,0.28); border-color: #7c3aed; }
+  .btn-ai.full-width { width: 100%; padding: 0.75rem; font-size: 0.95rem; border-radius: 10px; }
+</style>
+
+<script src="{% static 'app.js' %}"></script>
+</body>
+</html>
