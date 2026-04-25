@@ -290,6 +290,8 @@
 #         ))
 
 
+
+
 import csv
 import os
 from django.core.management.base import BaseCommand
@@ -304,6 +306,11 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         from movies.models import Movie, Genre
+
+        # 🔥 IMPORTANT FIX (prevents re-import every deploy)
+        if Movie.objects.exists() and not options.get('clear'):
+            self.stdout.write("⚠ Movies already exist. Skipping import.")
+            return
 
         if options.get('clear'):
             self.stdout.write("Clearing DB...")
@@ -398,7 +405,7 @@ class Command(BaseCommand):
 
         print(f"TMDB DONE: {created} created, {skipped} skipped")
 
-    # ---------------- INDIAN (FIXED) ----------------
+    # ---------------- INDIAN ----------------
 
     def _import_indian(self, path, Movie, Genre):
         created = skipped = 0
@@ -415,7 +422,6 @@ class Command(BaseCommand):
                     title = title.strip()
                     genres_list, genres_str = self._parse_genres(row.get('Genre'))
 
-                    # ✅ FIXED: use get_or_create instead of create to handle duplicates
                     movie, was_created = Movie.objects.get_or_create(
                         title=title,
                         source='indian',
